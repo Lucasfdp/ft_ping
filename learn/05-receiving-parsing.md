@@ -16,6 +16,16 @@ present), so you know exactly where the ICMP payload starts.
 header struct, check type/code, and compare identifier + sequence number against what you sent —
 confirming it's actually a reply to *your* request, not another process's ping or a stray packet.
 
+> **Names, expanded** — `recvfrom` = **rec**ei**v**e **from** (returns the sender's address too) ·
+> **IHL** = **I**nternet **H**eader **L**ength · **TTL** = **T**ime **T**o **L**ive (counts *hops*,
+> not seconds — each router decrements it) · `ICMP_ECHOREPLY` = the ICMP **ECHO REPLY** type
+> constant, value 0 · `MSG_TRUNC` = **M**e**S**sa**G**e **TRUNC**ated, the flag meaning "the packet
+> was bigger than your buffer and the rest is gone" · **RTT** = **R**ound-**T**rip **T**ime.
+> Full list in [GLOSSARY.md](GLOSSARY.md).
+>
+> **"Datagram"** here just means one self-contained packet, as opposed to a continuous stream.
+> **"Granularity"** means the size of the unit you work in — a raw socket works in whole packets.
+
 ---
 
 ## Check questions

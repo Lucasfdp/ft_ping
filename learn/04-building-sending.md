@@ -18,6 +18,16 @@ part of handling each reply either.
 **`sendto()` on a raw ICMP socket:** no destination port needed — ICMP has none. Just a
 `sockaddr_in` with the target IP filled in.
 
+> **Names, expanded** — `sockaddr_in` = **sock**et **addr**ess, **in**ternet flavour (the IPv4
+> one; `sockaddr_in6` is the IPv6 version) · `AF_INET` = **A**ddress **F**amily: **INET**ernet ·
+> `INADDR_ANY` = **IN**ternet **ADDR**ess: **ANY**, meaning "any local address" ·
+> `gai_strerror` = **g**et**a**ddr**i**nfo **str**ing **error**, the error-text function specific to
+> `getaddrinfo` (it does **not** use `errno`, which is why plain `perror` gives you nonsense here) ·
+> `freeaddrinfo` = **free** the **addr**ess **info** that `getaddrinfo` allocated for you.
+> Full list in [GLOSSARY.md](GLOSSARY.md).
+>
+> **"Resolution"** means turning a name into an address — the lookup step, nothing more.
+
 ---
 
 ## Check questions

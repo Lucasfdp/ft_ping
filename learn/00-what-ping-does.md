@@ -15,8 +15,14 @@ not a transport-layer protocol at all. That's the whole reason ping can't just o
 the way a chat client or web browser would.
 
 **Why root, historically:** reading/writing packets below the normal socket abstraction requires a
-**raw socket**, and raw sockets are a privileged operation on most OSes, since they let a process
-see or craft traffic outside its own connections.
+**raw socket**, and raw sockets are a privileged operation on most OSes (**O**perating **S**ystems),
+since they let a process see or craft traffic outside its own connections.
+
+> **Names, expanded** — **ICMP** = **I**nternet **C**ontrol **M**essage **P**rotocol ·
+> **IP** = **I**nternet **P**rotocol · **TCP** = **T**ransmission **C**ontrol **P**rotocol ·
+> **UDP** = **U**ser **D**atagram **P**rotocol · **RFC** = **R**equest **F**or **C**omments (the
+> documents that define internet protocols — despite the modest name, these *are* the standards) ·
+> **RTT** = **R**ound-**T**rip **T**ime. Full list in [GLOSSARY.md](GLOSSARY.md).
 
 ---
 

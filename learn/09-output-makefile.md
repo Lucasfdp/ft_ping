@@ -15,6 +15,16 @@ than guessing at spacing.
 recompile/relink what actually changed — proper dependency tracking (object files depending on
 their `.c` and relevant `.h` files), not a rule that always rebuilds everything.
 
+> **Names, expanded** — `fclean` = **f**ull **clean** · `OBJS` = **obj**ect file**s** (the `.o`
+> files, compiled but not yet linked together) · **GNU** = a recursive joke, "**G**NU's **N**ot
+> **U**nix" — the project behind `make`, `gcc` and the inetutils package you're diffing against ·
+> **DNS** = **D**omain **N**ame **S**ystem; *reverse* DNS is the backwards lookup, address → name ·
+> **RTT** = **R**ound-**T**rip **T**ime. Full list in [GLOSSARY.md](GLOSSARY.md).
+>
+> **"Relink"** means re-running the final step that joins the compiled `.o` files into one binary.
+> **"Dependency tracking"** means the Makefile knowing which files each `.o` was built from, so it
+> can tell what genuinely needs redoing.
+
 ---
 
 ## Check questions

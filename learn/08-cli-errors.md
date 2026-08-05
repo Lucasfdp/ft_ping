@@ -1,5 +1,8 @@
 # Stage 8 — CLI Parsing & Robust Error Handling
 
+*CLI = **C**ommand-**L**ine **I**nterface — the arguments and flags the user types after the
+program name.*
+
 **Prerequisite:** [07-signals-stats.md](07-signals-stats.md) · **Next:** [09-output-makefile.md](09-output-makefile.md)
 
 ---
@@ -18,6 +21,7 @@ every failure path behaves consistently.
 > holding the last failure (only meaningful *immediately* after a failed call) · `EPERM` =
 > **E**rror: **PERM**ission denied · `EINVAL` = **E**rror: **INVAL**id argument · `getopt` =
 > **get** **opt**ion. All error constants start with **E** for **E**rror.
+> Full list in [GLOSSARY.md](GLOSSARY.md).
 
 ---
 

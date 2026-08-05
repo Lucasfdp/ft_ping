@@ -15,7 +15,7 @@ take the one's complement (bitwise NOT) of the result.
 > overflow when a sum grows past what 16 bits can hold; *end-around carry* means adding that
 > overflow back in at the bottom rather than throwing it away. *One's complement* means flipping
 > every bit — 0s become 1s and vice versa. Storing it flipped is the trick that makes the
-> receiver's check "add everything up, expect zero" work.
+> receiver's check "add everything up, expect zero" work. Full list in [GLOSSARY.md](GLOSSARY.md).
 
 **Ordering matters:** zero the checksum field itself before computing — it can't include its own
 value.
@@ -71,4 +71,7 @@ it again if replies ever look wrong.
 - **RFC 1071** — "Computing the Internet Checksum". Sections 1 and 4.1 give the algorithm and a
   reference C implementation. This is the definitive source
 - **RFC 792** — the Checksum field paragraph in the Echo message spec (states what range it covers)
-- `man 1 valgrind` or GCC's `-fsanitize=address` docs — for step 3
+- `man 1 valgrind` or GCC's `-fsanitize=address` docs — for step 3.
+  **GCC** = **G**NU **C**ompiler **C**ollection · **ASan** = **A**ddress **San**itizer, a compiler
+  feature that catches reads and writes outside your buffers at runtime · *valgrind* isn't an
+  acronym, it's just a name

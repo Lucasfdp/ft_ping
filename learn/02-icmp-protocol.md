@@ -11,7 +11,8 @@ more specific sub-reason), a checksum for integrity, then message-specific data.
 
 ## Echo-specific fields
 
-- **Identifier** — traditionally the sending process's PID. Lets your ping tell its own replies
+- **Identifier** — traditionally the sending process's **PID** (**P**rocess **ID**entifier, the
+  number the OS gives your running program). Lets your ping tell its own replies
   apart from another process's pings running on the same host at the same time.
 - **Sequence number** — increments per packet sent. Lets you detect loss and reordering.
 - **Payload data** — arbitrary bytes, often used to carry a timestamp and/or a fill pattern.
@@ -23,6 +24,7 @@ more specific sub-reason), a checksum for integrity, then message-specific data.
 > reused for different message types' fields) · `htons` = **h**ost **to** **n**etwork **s**hort,
 > `ntohs` = **n**etwork **to** **h**ost **s**hort. "Short" means a 2-byte number; these swap which
 > end of it goes first, because networks and machines don't always agree.
+> Full list in [GLOSSARY.md](GLOSSARY.md).
 
 **Other ICMP types worth knowing** (for robustness and for the bonus): Destination Unreachable
 (type 3), Time Exceeded (type 11 — directly relevant to the `-T`/`--ttl` bonus), Redirect (type 5).
@@ -76,4 +78,5 @@ same byte order.
 - `/usr/include/netinet/ip_icmp.h` — read the actual `struct icmphdr` and the `ICMP_*` type
   constants on your machine
 - `man 3 htons` / `man 3 endian` — byte-order conversion
-- **IANA ICMP Parameters** registry — the authoritative type/code list
+- **IANA** (**I**nternet **A**ssigned **N**umbers **A**uthority) **ICMP Parameters** registry — the
+  authoritative type/code list. IANA keeps the official numbering for protocols, ports and ICMP types

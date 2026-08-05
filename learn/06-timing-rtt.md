@@ -18,6 +18,7 @@ clock changes) mid-measurement.
 > **Names, expanded** — `CLOCK_MONOTONIC` = a clock that is *monotonic*, i.e. only ever increases,
 > never jumps back. `CLOCK_REALTIME` = actual wall-clock date and time, which *can* jump.
 > NTP = **N**etwork **T**ime **P**rotocol, the thing that does the jumping.
+> Full list in [GLOSSARY.md](GLOSSARY.md).
 
 **Tolerance:** the subject allows ±30ms slack on the RTT line versus the reference implementation
 — don't over-engineer beyond what `clock_gettime` naturally gives you.

@@ -21,7 +21,7 @@ value (needed to compute min/avg/max and **mdev** — mean deviation — at the 
 > `sig_atomic_t` = a **sig**nal-safe **atomic** **t**ype, one that can't be caught half-written ·
 > `SA_RESTART` = **S**ig**a**ction flag: **RESTART** the interrupted syscall ·
 > `EINTR` = **E**rror: **INTR**errupted · *reentrant* = safe to call again while an earlier call is
-> still running, which is what a signal handler needs.
+> still running, which is what a signal handler needs. Full list in [GLOSSARY.md](GLOSSARY.md).
 
 ---
 
