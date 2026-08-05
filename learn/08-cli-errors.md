@@ -14,6 +14,11 @@ error, double free). Every syscall that can fail — `socket`, `sendto`, `recvfr
 **Design pattern:** centralize error reporting (a small `ft_error()`/`perror`-style helper) so
 every failure path behaves consistently.
 
+> **Names, expanded** — `perror` = **p**rint **error** · `errno` = **err**or **n**umber, the global
+> holding the last failure (only meaningful *immediately* after a failed call) · `EPERM` =
+> **E**rror: **PERM**ission denied · `EINVAL` = **E**rror: **INVAL**id argument · `getopt` =
+> **get** **opt**ion. All error constants start with **E** for **E**rror.
+
 ---
 
 ## Check questions

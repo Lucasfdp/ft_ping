@@ -1,14 +1,16 @@
 # Stage 0 — What Ping Actually Does
 
-**Prerequisite:** none. **Next:** [01-sockets.md](01-sockets.md)
+**Prerequisite:** none. **Next:** [01-sockets.md](01-sockets.md) · Acronyms: [GLOSSARY.md](GLOSSARY.md)
 
 ---
 
 **Plain version:** your machine sends a tiny "are you there?" packet to another machine. If it's
 reachable, that machine sends back "yes, I'm here." You measure how long the round trip took.
 
-**Where this sits in the stack:** this isn't TCP and it isn't UDP. It's a separate protocol called
-**ICMP** (Internet Control Message Protocol) that rides directly on top of IP — protocol number 1,
+**Where this sits in the stack:** this isn't TCP (**T**ransmission **C**ontrol **P**rotocol) and it
+isn't UDP (**U**ser **D**atagram **P**rotocol). It's a separate protocol called
+**ICMP** — **I**nternet **C**ontrol **M**essage **P**rotocol — that rides directly on top of IP
+(**I**nternet **P**rotocol). Protocol number 1,
 not a transport-layer protocol at all. That's the whole reason ping can't just open a normal socket
 the way a chat client or web browser would.
 

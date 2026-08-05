@@ -5,7 +5,7 @@
 ---
 
 **Plain version:** record a timestamp when you send, record another when the reply arrives, and
-diff them.
+diff them. That difference is the **RTT** — **R**ound-**T**rip **T**ime.
 
 **Where to put the send timestamp:** commonly embedded directly in the ICMP payload — so on the
 receiving side you pull it back out and diff it against "now," without needing to separately track
@@ -14,6 +14,10 @@ timestamps per sequence number in a lookup table (though that's also valid).
 **Precision:** `clock_gettime(CLOCK_MONOTONIC, ...)` is generally preferred over `gettimeofday()`
 for measuring elapsed time, since it isn't affected by wall-clock adjustments (NTP sync, manual
 clock changes) mid-measurement.
+
+> **Names, expanded** — `CLOCK_MONOTONIC` = a clock that is *monotonic*, i.e. only ever increases,
+> never jumps back. `CLOCK_REALTIME` = actual wall-clock date and time, which *can* jump.
+> NTP = **N**etwork **T**ime **P**rotocol, the thing that does the jumping.
 
 **Tolerance:** the subject allows ±30ms slack on the RTT line versus the reference implementation
 — don't over-engineer beyond what `clock_gettime` naturally gives you.

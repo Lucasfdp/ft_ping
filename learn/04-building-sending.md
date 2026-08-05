@@ -7,8 +7,11 @@
 **Plain version:** fill a struct representing the ICMP header (plus any payload bytes), compute
 the checksum over it, then hand the whole buffer to `sendto()` along with the destination address.
 
-**Resolving the destination:** `getaddrinfo()` turns a hostname or IP string into a `sockaddr` you
-can pass to `sendto()`. The subject requires handling FQDNs but says not to do DNS resolution "in
+**Resolving the destination:** `getaddrinfo()` — **get** **addr**ess **info**rmation — turns a
+hostname or IP string into a `sockaddr` (**sock**et **addr**ess) you can pass to `sendto()`. The
+subject requires handling **FQDN**s (**F**ully **Q**ualified **D**omain **N**ames — complete
+hostnames like `www.example.com`) but says not to do DNS (**D**omain **N**ame **S**ystem)
+resolution "in
 the packet return" — meaning: resolve the target once, up front, and don't do a fresh lookup as
 part of handling each reply either.
 

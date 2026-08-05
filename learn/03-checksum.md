@@ -11,6 +11,12 @@ receiver can detect corruption in transit.
 `uint16_t`), fold any carry-out beyond 16 bits back into the low bits ("end-around carry"), then
 take the one's complement (bitwise NOT) of the result.
 
+> **Jargon, unpacked** — a *16-bit word* is just two bytes read as one number. *Carry-out* is the
+> overflow when a sum grows past what 16 bits can hold; *end-around carry* means adding that
+> overflow back in at the bottom rather than throwing it away. *One's complement* means flipping
+> every bit — 0s become 1s and vice versa. Storing it flipped is the trick that makes the
+> receiver's check "add everything up, expect zero" work.
+
 **Ordering matters:** zero the checksum field itself before computing — it can't include its own
 value.
 

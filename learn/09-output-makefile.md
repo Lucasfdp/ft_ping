@@ -64,6 +64,9 @@ binary — not the whole project.
    CFLAGS += -Wall -Wextra -Werror -MMD -MP
    -include $(OBJS:.o=.d)
    ```
+   `-MMD` = **M**ake **M**ake **D**ependencies (emit a `.d` file listing which headers each `.c`
+   actually included). `-MP` = **M**ake **P**hony targets, so a renamed or deleted header
+   doesn't break the build. `CFLAGS` = **C** compiler **flags**.
 6. **Verify the incremental rule actually works:**
    - `make` → builds. `make` again → prints "nothing to be done". If it rebuilds, your rule is wrong.
    - `touch` one `.c` → only that object recompiles + relink.

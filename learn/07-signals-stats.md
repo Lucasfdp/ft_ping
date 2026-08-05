@@ -17,6 +17,12 @@ signal handler. The standard pattern: set a `volatile sig_atomic_t` flag in the 
 **Stats to accumulate as you go:** packets transmitted, packets received, and every individual RTT
 value (needed to compute min/avg/max and **mdev** — mean deviation — at the end).
 
+> **Names, expanded** — `SIGINT` = **SIG**nal: **INT**errupt (what Ctrl+C sends) ·
+> `sig_atomic_t` = a **sig**nal-safe **atomic** **t**ype, one that can't be caught half-written ·
+> `SA_RESTART` = **S**ig**a**ction flag: **RESTART** the interrupted syscall ·
+> `EINTR` = **E**rror: **INTR**errupted · *reentrant* = safe to call again while an earlier call is
+> still running, which is what a signal handler needs.
+
 ---
 
 ## Check questions

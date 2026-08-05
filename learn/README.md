@@ -8,6 +8,11 @@ see in headers, man pages and RFCs. Every stage ends with **check questions** (a
 
 **Work one file at a time.** Don't open the next stage until the current one's exercise passes.
 
+**Acronyms are always expanded.** Every constant, flag and abbreviation is broken down letter by
+letter on first use, and collected in **[GLOSSARY.md](GLOSSARY.md)** — including plain-English
+translations of phrases like "inject arbitrary IP-level traffic" and "demultiplexing". If a term
+appears anywhere in these notes without an expansion, that's a bug; it belongs in the glossary.
+
 ## Stages
 
 | # | File | Topic |

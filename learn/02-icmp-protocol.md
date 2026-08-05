@@ -19,6 +19,11 @@ more specific sub-reason), a checksum for integrity, then message-specific data.
 **Struct layout** (`struct icmphdr` in `netinet/ip_icmp.h`): `type` (1B), `code` (1B), `checksum`
 (2B), `un.echo.id` (2B), `un.echo.sequence` (2B).
 
+> **Names, expanded** — `icmphdr` = ICMP **h**ea**d**e**r** · `un` = **un**ion (one memory slot
+> reused for different message types' fields) · `htons` = **h**ost **to** **n**etwork **s**hort,
+> `ntohs` = **n**etwork **to** **h**ost **s**hort. "Short" means a 2-byte number; these swap which
+> end of it goes first, because networks and machines don't always agree.
+
 **Other ICMP types worth knowing** (for robustness and for the bonus): Destination Unreachable
 (type 3), Time Exceeded (type 11 — directly relevant to the `-T`/`--ttl` bonus), Redirect (type 5).
 If you get one of these instead of an Echo Reply, real ping reports it — it doesn't crash.

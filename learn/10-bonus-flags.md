@@ -19,6 +19,12 @@ nothing if anything above is incomplete.
 | `-T`/`--ttl` | Set IP TTL via `setsockopt(IPPROTO_IP, IP_TTL, ...)` — can deliberately induce a Time Exceeded reply | Stage 2 ICMP error types |
 | `--ip-timestamp` | Attach an IP-level timestamp *option* to outgoing packets | Stage 1 `IP_HDRINCL` |
 
+> **Names, expanded** — `SO_DONTROUTE` = **S**ocket **O**ption: **DON'T ROUTE** ·
+> `IP_TTL` = **IP** **T**ime **T**o **L**ive (counts *hops*, not seconds) ·
+> `IP_HDRINCL` = **IP** **H**ea**D**e**R** **INCL**uded ·
+> **MTU** = **M**aximum **T**ransmission **U**nit, the largest packet a link will carry (~1500
+> bytes on Ethernet). Exceed it and the packet gets split up — that's *fragmentation*.
+
 `--ip-timestamp` is the one that genuinely forces you back into `IP_HDRINCL` territory: IP
 timestamp is an IP header *option*, not something exposed via a simple `setsockopt`, so producing
 it means building the IP header yourself.

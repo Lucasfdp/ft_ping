@@ -8,7 +8,7 @@
 message — it hands you the *entire IP packet*, IP header included, wrapped around that ICMP reply.
 
 **IP header parsing:** you need a struct for the IP header (`struct ip` in `netinet/ip.h`, or your
-own), specifically its **IHL** (Internet Header Length) field — this tells you how many 32-bit
+own), specifically its **IHL** field — **I**nternet **H**eader **L**ength. This tells you how many 32-bit
 words long the IP header actually is *for this specific packet* (it varies when IP options are
 present), so you know exactly where the ICMP payload starts.
 
