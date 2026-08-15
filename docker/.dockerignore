@@ -1,0 +1,4 @@
+# Keep the build context minimal — only check-env.sh is COPYed in.
+# Everything else reaches the container via the bind mount at runtime.
+*
+!check-env.sh
