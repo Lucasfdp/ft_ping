@@ -81,3 +81,74 @@ and a truncated/wrong-id one.
 - `/usr/include/netinet/ip.h` — the real `struct ip`; note `ip_hl` is a bitfield and its position
   depends on endianness (read the `#if __BYTE_ORDER` block)
 - **RFC 791** §3.1 — the IP header diagram, specifically IHL and Options
+
+---
+
+## Stage 5 completion note — what still differs from real `ping`
+
+Stage 5 is **done**: one send, one receive, one printed line, verified against a `tcpdump`
+capture. The items below are known gaps, deliberately left for later stages. Recorded here so
+they don't get lost between now and the eval.
+
+### 1. `icmp_seq` starts at 0, real ping starts at 1
+
+`main.c` initialises `int seq = 0;` and the first packet goes out with `sequence = htons(0)`,
+so the output reads `icmp_seq=0`. Real `ping` numbers its first packet **1** — every reference
+output, every man page example, and the subject's own sample output start at `icmp_seq=1`.
+
+Fix is one character (`int seq = 1;`), but do it **when the send loop lands in Stage 7**, not
+now — the loop is where `seq` starts being incremented, and changing the initialiser in
+isolation now means touching it twice.
+
+Note that nothing in the receive path needs to change: `sent_seq` is passed in from `main` and
+compared raw, so it follows whatever `main` sends.
+
+### 2. Uninitialised padding is leaking onto the wire
+
+Visible in the capture. `fill_payload()` does `memcpy(pkt->payload, &tv, sizeof tv)` with
+`struct timeval tv` as a local. On macOS/arm64 `struct timeval` is 16 bytes: 8 for `tv_sec`,
+4 for `tv_usec`, **4 bytes of padding**. `gettimeofday()` writes the first two fields and
+leaves the padding alone, so payload bytes 12–15 are whatever was on the stack:
+
+```
+0x0020:  0000 0000 5120 0600 0100 0000 1011 1213
+                             ^^^^^^^^^ stack garbage, sent to 8.8.8.8
+```
+
+The `memset(&pkt, 0, sizeof pkt)` in `main` does not help — the `memcpy` overwrites those
+zeroed bytes with the padding afterwards. ASan will not catch this (it is an uninitialised
+*read*, not an out-of-bounds one); valgrind reports it as *"syscall param socketcall.sendto(msg)
+points to uninitialised byte(s)"*, and some evaluators do run valgrind.
+
+Fix: `struct timeval tv = {0};` before the `gettimeofday()` call.
+
+### 3. Header line is missing the byte count
+
+Currently: `PING 8.8.8.8 (8.8.8.8)`
+Real ping: `PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.`
+
+Cosmetic, but the subject asks the output to resemble the real thing. Belongs with the rest of
+the output work in Stage 9.
+
+### 4. Deferred by design (not bugs)
+
+- **No RTT** — `time=X ms` needs the send timestamp read back out of the payload. Stage 6.
+- **No timeout** — a reply that never matches blocks in `recvfrom` forever. This is *correct*
+  behaviour for Stage 5 and is exactly what the broken-id test demonstrates; the timeout arrives
+  with the loop in Stage 6.
+- **Single packet** — no 1-second send loop, no `SIGINT` handler, no final statistics block.
+  Stages 6 and 7.
+
+### Verified this stage
+
+Decoded from the `tcpdump -x` capture of a real exchange with 8.8.8.8:
+
+| Field | Value | Check |
+|---|---|---|
+| IHL | `0x45` → 5 → 20 bytes | computed, not assumed |
+| Total length | `0x0054` = 84 = 20 + 64 | matches `bytes_read` |
+| ICMP type | `08` request / `00` reply | filter matches on 0 |
+| id | `0x4a06` = 18950 | identical both directions |
+| seq | `0x0000` | identical both directions |
+| Checksum | `0x1f36` → `0x2736` | delta is exactly `0x0800`, the type change — arithmetic is correct |
+| Payload fill | starts `10 11 12 13` at offset 16 | matches real ping's pattern |

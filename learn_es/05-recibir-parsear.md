@@ -84,3 +84,76 @@ con una respuesta buena como con una truncada o con id equivocado.
 - `/usr/include/netinet/ip.h` — el `struct ip` real; fíjate en que `ip_hl` es un campo de bits y su
   posición depende del endianness (lee el bloque `#if __BYTE_ORDER`)
 - **RFC 791** §3.1 — el diagrama de la cabecera IP, en concreto IHL y Options
+
+---
+
+## Nota de cierre de la Etapa 5 — qué sigue difiriendo del `ping` real
+
+La Etapa 5 está **terminada**: un envío, una recepción, una línea impresa, verificada contra una
+captura de `tcpdump`. Lo de abajo son carencias conocidas, dejadas a propósito para etapas
+posteriores. Se anotan aquí para que no se pierdan de aquí a la evaluación.
+
+### 1. `icmp_seq` empieza en 0, el ping real empieza en 1
+
+`main.c` inicializa `int seq = 0;` y el primer paquete sale con `sequence = htons(0)`, así que la
+salida dice `icmp_seq=0`. El `ping` real numera su primer paquete como **1** — todas las salidas
+de referencia, todos los ejemplos del man y la propia salida de muestra del subject empiezan en
+`icmp_seq=1`.
+
+El arreglo es un carácter (`int seq = 1;`), pero hazlo **cuando llegue el bucle de envío en la
+Etapa 7**, no ahora: el bucle es donde `seq` empieza a incrementarse, y cambiar el inicializador
+aislado ahora significa tocarlo dos veces.
+
+Fíjate en que nada del camino de recepción necesita cambiar: `sent_seq` llega como parámetro
+desde `main` y se compara en crudo, así que sigue lo que `main` envíe.
+
+### 2. Se está filtrando padding sin inicializar hacia la red
+
+Visible en la captura. `fill_payload()` hace `memcpy(pkt->payload, &tv, sizeof tv)` con
+`struct timeval tv` como variable local. En macOS/arm64 `struct timeval` mide 16 bytes: 8 de
+`tv_sec`, 4 de `tv_usec` y **4 bytes de padding**. `gettimeofday()` escribe los dos primeros
+campos y deja el padding intacto, así que los bytes 12–15 del payload son lo que hubiera en la
+pila:
+
+```
+0x0020:  0000 0000 5120 0600 0100 0000 1011 1213
+                             ^^^^^^^^^ basura de la pila, enviada a 8.8.8.8
+```
+
+El `memset(&pkt, 0, sizeof pkt)` de `main` no ayuda: el `memcpy` sobrescribe después esos bytes
+puestos a cero con el padding. ASan no lo detecta (es una *lectura* sin inicializar, no un acceso
+fuera de límites); valgrind sí lo reporta como *"syscall param socketcall.sendto(msg) points to
+uninitialised byte(s)"*, y algunos evaluadores pasan valgrind.
+
+Arreglo: `struct timeval tv = {0};` antes de la llamada a `gettimeofday()`.
+
+### 3. A la línea de cabecera le falta el contador de bytes
+
+Ahora mismo: `PING 8.8.8.8 (8.8.8.8)`
+Ping real: `PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.`
+
+Es cosmético, pero el subject pide que la salida se parezca a la real. Va con el resto del trabajo
+de salida en la Etapa 9.
+
+### 4. Aplazado a propósito (no son bugs)
+
+- **Sin RTT** — `time=X ms` necesita leer de vuelta el timestamp de envío desde el payload. Etapa 6.
+- **Sin timeout** — una respuesta que nunca casa se queda bloqueada en `recvfrom` para siempre. Es
+  el comportamiento *correcto* para la Etapa 5 y es exactamente lo que demuestra la prueba del id
+  roto; el timeout llega con el bucle de la Etapa 6.
+- **Un solo paquete** — sin bucle de envío cada segundo, sin manejador de `SIGINT`, sin bloque
+  final de estadísticas. Etapas 6 y 7.
+
+### Verificado en esta etapa
+
+Descodificado de la captura `tcpdump -x` de un intercambio real con 8.8.8.8:
+
+| Campo | Valor | Comprobación |
+|---|---|---|
+| IHL | `0x45` → 5 → 20 bytes | calculado, no supuesto |
+| Longitud total | `0x0054` = 84 = 20 + 64 | cuadra con `bytes_read` |
+| Type ICMP | `08` petición / `00` respuesta | el filtro casa con 0 |
+| id | `0x4a06` = 18950 | idéntico en ambos sentidos |
+| seq | `0x0000` | idéntico en ambos sentidos |
+| Checksum | `0x1f36` → `0x2736` | la diferencia es exactamente `0x0800`, el cambio de type — la aritmética es correcta |
+| Relleno del payload | empieza `10 11 12 13` en el offset 16 | coincide con el patrón del ping real |

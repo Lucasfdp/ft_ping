@@ -1,49 +1,205 @@
-NAME		:= ft_ping
-TESTS		:= test_checksum test_resolve
+NAME		:=	ft_ping
+TESTS		:=	test_checksum test_resolve
 
-CC		:= cc
-CFLAGS		:= -Wall -Wextra -Werror -MMD -MP
+CC			:=	cc
+CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP
+LDLIBS		:=	-lm   # sqrt() in print_stats()
 
-SRCS		:= main.c ft_checksum.c ft_resolve.c
-OBJ_DIR		:= obj
-OBJS		:= $(SRCS:%.c=$(OBJ_DIR)/%.o)
+SRCS		:=	main.c \
+				ft_checksum.c \
+				ft_resolve.c \
+				ft_rec_resp.c
+OBJ_DIR		:=	obj
+OBJS		:=	$(SRCS:%.c=$(OBJ_DIR)/%.o)
 
-CK_SRCS		:= test_checksum.c ft_checksum.c
-CK_OBJS		:= $(CK_SRCS:%.c=$(OBJ_DIR)/%.o)
+CK_SRCS		:=	test_checksum.c ft_checksum.c
+CK_OBJS		:=	$(CK_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-RS_SRCS		:= test_resolve.c ft_resolve.c
-RS_OBJS		:= $(RS_SRCS:%.c=$(OBJ_DIR)/%.o)
+RS_SRCS		:=	test_resolve.c ft_resolve.c
+RS_OBJS		:=	$(RS_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:= $(sort $(OBJS) $(CK_OBJS) $(RS_OBJS))
+ALL_OBJS	:=	$(sort $(OBJS) $(CK_OBJS) $(RS_OBJS))
 
+TOTAL		:=	$(words $(SRCS))
+COMPILED	:=	0
+MAKEFLAGS	+=	--no-print-directory
+
+# ==========================
+# Colours
+# ==========================
+GREEN		= \033[0;32m
+BLUE		= \033[0;34m
+CYAN		= \033[0;36m
+YELLOW		= \033[0;33m
+RED			= \033[0;31m
+MAGENTA		= \033[0;35m
+BOLD		= \033[1m
+RESET		= \033[0m
+
+# ==========================
+# Targets
+# ==========================
 all: $(NAME)
 
 $(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@
+	@$(CC) $(CFLAGS) $(OBJS) $(LDLIBS) -o $(NAME)
+	@$(MAKE) banner
+	@printf "$(GREEN)$(BOLD) [ft_ping compiled successfully]$(RESET)\n\n"
 
+# Compile with progress bar
 $(OBJ_DIR)/%.o: %.c | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	@$(eval COMPILED := $(shell echo $$(($(COMPILED) + 1))))
+	@$(eval PCT := $(shell echo $$(($(COMPILED) * 100 / $(TOTAL)))))
+	@$(eval FILLED := $(shell if [ $(COMPILED) -eq $(TOTAL) ]; then echo 20; else echo $$(($(COMPILED) * 20 / $(TOTAL))); fi))
+	@$(eval EMPTY := $(shell echo $$(( 20 - $(FILLED)))))
+	@printf "\r$(CYAN)  Compiling $(BOLD)%-30s$(RESET)$(CYAN) [" "$(notdir $<)"
+	@i=0; while [ $$i -lt $(FILLED) ]; do printf "$(GREEN)█$(RESET)"; i=$$((i+1)); done
+	@i=0; while [ $$i -lt $(EMPTY) ]; do printf "░"; i=$$((i+1)); done
+	@printf "$(CYAN)] $(BOLD)%3d%%$(RESET)" $(PCT)
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+	@mkdir -p $(OBJ_DIR)
 
+# ==========================
+# Tests
+# ==========================
 test: $(TESTS)
-	@for t in $(TESTS); do echo "== $$t"; ./$$t || exit 1; done
+	@printf "$(YELLOW)$(BOLD)\n  Running unit tests...$(RESET)\n\n"
+	@for t in $(TESTS); do printf "$(CYAN)  == %s ==$(RESET)\n" "$$t"; ./$$t || exit 1; done
+	@printf "$(GREEN)$(BOLD)\n  [All tests passed]$(RESET)\n\n"
 
 test_checksum: $(CK_OBJS)
-	$(CC) $(CFLAGS) $(CK_OBJS) -o $@
+	@$(CC) $(CFLAGS) $(CK_OBJS) -o $@
 
 test_resolve: $(RS_OBJS)
-	$(CC) $(CFLAGS) $(RS_OBJS) -o $@
+	@$(CC) $(CFLAGS) $(RS_OBJS) -o $@
 
+# ==========================
+# Valgrind
+# ==========================
+valgrind: $(NAME)
+	@printf "$(YELLOW)$(BOLD)\n  Running valgrind on $(NAME) (needs sudo for raw sockets)...$(RESET)\n\n"
+	sudo valgrind \
+		--leak-check=full \
+		--show-leak-kinds=all \
+		--track-origins=yes \
+		--track-fds=yes \
+		--error-exitcode=1 \
+		--verbose \
+		./$(NAME) 127.0.0.1
+# ==========================
+# Debug build
+# ==========================
+debug: CFLAGS += -g3 -fsanitize=address
+debug: re
+	@printf "$(RED)$(BOLD)  [Debug build with ASan ready]$(RESET)\n\n"
+
+# ==========================
+# Run
+# ==========================
+run: $(NAME)
+	@printf "$(GREEN)$(BOLD)  Starting ft_ping (needs sudo for raw sockets)...$(RESET)\n\n"
+	sudo ./$(NAME) $(ARGS)
+
+# ==========================
+# Check style / warnings
+# ==========================
+check: CFLAGS += -Wpedantic -Wshadow -Wconversion
+check: re
+	@printf "$(MAGENTA)$(BOLD)  [Strict warning check complete]$(RESET)\n\n"
+
+# ==========================
+# Count lines of code
+# ==========================
+cloc:
+	@printf "$(CYAN)$(BOLD)\n  Lines of code:$(RESET)\n\n"
+	@find . -name "*.c" -o -name "*.h" | grep -v "^./obj" | \
+		xargs wc -l | sort -rn | head -20
+	@printf "\n"
+
+# ==========================
+# Show all source files
+# ==========================
+list:
+	@printf "$(CYAN)$(BOLD)\n  Source files:$(RESET)\n"
+	@for f in $(SRCS); do printf "    $(GREEN)→$(RESET) $$f\n"; done
+	@printf "$(CYAN)$(BOLD)\n  Headers:$(RESET)\n"
+	@for f in *.h; do printf "    $(BLUE)→$(RESET) $$f\n"; done
+	@printf "\n"
+
+# ==========================
+# Push to GitHub
+# ==========================
+# Usage: make push MSG="commit message"
+MSG			?=	update: $(shell date "+%Y-%m-%d %H:%M")
+BRANCH		:=	$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+push:
+	@printf "$(YELLOW)$(BOLD)\n  Pushing to GitHub ($(BRANCH))...$(RESET)\n\n"
+	@git add -A
+	@if git diff --cached --quiet; then \
+		printf "$(CYAN)  Nothing to commit, pushing anyway...$(RESET)\n"; \
+	else \
+		git commit -m "$(MSG)"; \
+	fi
+	@git push origin $(BRANCH)
+	@printf "$(GREEN)$(BOLD)\n  [Pushed to $(BRANCH)]$(RESET)\n\n"
+
+# ==========================
+# Banner
+# ==========================
+banner:
+	@if [ -t 1 ] && [ -n "$$TERM" ]; then clear; fi
+	@printf "\n$(CYAN)"
+	@sleep 0.05
+	@printf "%s\n" "    ______              _            "
+	@sleep 0.15
+	@printf "%s\n" "   / __/ /_      ____  (_)___  ____ _"
+	@sleep 0.15
+	@printf "%s\n" "  / /_/ __/     / __ \\/ / __ \\/ __ \`/"
+	@sleep 0.15
+	@printf "%s\n" " / __/ /_      / /_/ / / / / / /_/ / "
+	@sleep 0.15
+	@printf "%s\n" "/_/  \\__/_____/ .___/_/_/ /_/\\__, /  "
+	@sleep 0.15
+	@printf "%s\n" "       /_____/_/            /____/   "
+	@printf "$(RESET)\n"
+
+# ==========================
+# Clean
+# ==========================
 clean:
-	rm -rf $(OBJ_DIR)
+	@rm -rf $(OBJ_DIR)
+	@printf "$(BLUE)\n  Cleansed$(RESET)\n"
 
 fclean: clean
-	rm -f $(NAME) $(TESTS)
+	@rm -f $(NAME) $(TESTS)
+	@printf "$(BLUE)  More Cleansed$(RESET)\n\n"
 
 re: fclean all
 
 -include $(ALL_OBJS:.o=.d)
 
-.PHONY: all test clean fclean re
+# ==========================
+# Help
+# ==========================
+help:
+	@printf "\n$(CYAN)$(BOLD)  ft_ping — available commands$(RESET)\n\n"
+	@printf "  $(GREEN)make$(RESET)              — build ft_ping\n"
+	@printf "  $(GREEN)make re$(RESET)           — clean and rebuild\n"
+	@printf "  $(GREEN)make clean$(RESET)        — remove object files\n"
+	@printf "  $(GREEN)make fclean$(RESET)       — remove objects, binary, and test binaries\n"
+	@printf "  $(GREEN)make test$(RESET)         — build and run unit tests\n"
+	@printf "  $(GREEN)make run$(RESET)          — build and run ft_ping (sudo, pass ARGS=\"...\")\n"
+	@printf "  $(GREEN)make debug$(RESET)        — build with AddressSanitizer and debug symbols\n"
+	@printf "  $(GREEN)make valgrind$(RESET)     — run ft_ping under valgrind (sudo)\n"
+	@printf "  $(GREEN)make check$(RESET)        — rebuild with extra pedantic warnings\n"
+	@printf "  $(GREEN)make cloc$(RESET)         — count lines of code per file\n"
+	@printf "  $(GREEN)make list$(RESET)         — list all source and header files\n"
+	@printf "  $(GREEN)make push$(RESET)         — commit and push to GitHub (pass MSG=\"...\")\n"
+	@printf "  $(GREEN)make help$(RESET)         — show this message\n"
+	@printf "\n$(CYAN)  Usage:$(RESET)\n"
+	@printf "  $(YELLOW)sudo ./ft_ping <host> [options]$(RESET)\n\n"
+
+.PHONY: all test clean fclean re valgrind debug run check cloc list banner push help
