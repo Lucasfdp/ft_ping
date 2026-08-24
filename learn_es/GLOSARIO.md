@@ -51,11 +51,13 @@ para poder dar a un programa exactamente el que necesita. `CAP_NET_RAW` es el de
 | Escrito | Significa | Qué es |
 |---|---|---|
 | **`IP_HDRINCL`** | **IP** **H**ea**D**e**R** **INCL**uded | "La cabecera IP la construyo yo, no me la montes tú". |
-| **`IP_TTL`** | **IP** **T**ime **T**o **L**ive | Fija el contador de saltos de los paquetes que envías. El flag `-T`. |
+| **`IP_TTL`** | **IP** **T**ime **T**o **L**ive | Fija el contador de saltos de los paquetes **unicast** que envías. El flag `-m`. |
+| **`IP_MULTICAST_TTL`** | **IP** **MULTICAST** **T**ime **T**o **L**ive | Un contador de saltos aparte que el kernel solo consulta para destinos **multicast**. El flag `-T` — distinto de `IP_TTL`; fijar uno no toca el otro. |
 | **`IP_OPTIONS`** | **IP** **OPTIONS** | Los campos opcionales al final de una cabecera IP. |
 | **`SO_DONTROUTE`** | **S**ocket **O**ption: **DON'T ROUTE** | Sáltate la tabla de rutas; envía solo a una red directamente conectada. El flag `-r`. |
 | **`SO_RCVBUF`** | **S**ocket **O**ption: **R**e**C**ei**V**e **BUF**fer | Cuántos datos entrantes te guarda el kernel. |
 | **`MSG_TRUNC`** | **M**e**S**sa**G**e **TRUNC**ated | Flag que significa "el paquete era mayor que tu buffer; el resto se ha perdido". |
+| **`bind()`** | **fijar** ("bind") un socket a una dirección | Fija un socket a una dirección local concreta antes de usarlo, en lugar de dejar que el kernel elija una automáticamente. El flag `-S` lo usa para fijar la dirección de origen saliente. |
 
 ---
 
@@ -102,6 +104,8 @@ Las constantes de error empiezan todas por **`E`** de **E**rror.
 | **`CLOCK_REALTIME`** | **CLOCK**, **REAL** wall-clock **TIME** | Fecha y hora reales — pueden saltar cuando NTP corrige. Incorrecto para medir duraciones. |
 | **`timespec`** | **time** **spec**ification | Struct con segundos + nanosegundos. |
 | **Async-signal-safe** | **Asynchronous**-signal-safe | Seguro de llamar dentro de un signal handler. `printf` **no** lo es. |
+| **`usleep()`** | dormir **microsegundos** | Duerme un número de microsegundos — resolución suficiente para los intervalos fraccionarios del flag `-i`. |
+| **`nanosleep()`** | dormir **nanosegundos** | Como `usleep`, pero recibe un `struct timespec` e informa de cuánto tiempo quedaba si una señal lo interrumpió. La opción más precisa para `-i`. |
 
 ---
 

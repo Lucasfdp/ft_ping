@@ -47,11 +47,13 @@ one it needs. `CAP_NET_RAW` is the raw-socket one.
 | Written | Stands for | What it means |
 |---|---|---|
 | **`IP_HDRINCL`** | **IP** **H**ea**D**e**R** **INCL**uded | "I'm building the IP header myself, don't build one for me." |
-| **`IP_TTL`** | **IP** **T**ime **T**o **L**ive | Sets the hop counter on packets you send. The `-T` flag. |
+| **`IP_TTL`** | **IP** **T**ime **T**o **L**ive | Sets the hop counter on **unicast** packets you send. The `-m` flag. |
+| **`IP_MULTICAST_TTL`** | **IP** **MULTICAST** **T**ime **T**o **L**ive | A separate hop-counter setting the kernel only consults for **multicast** destinations. The `-T` flag — distinct from `IP_TTL`, setting one doesn't touch the other. |
 | **`IP_OPTIONS`** | **IP** **OPTIONS** | The optional extra fields at the end of an IP header. |
 | **`SO_DONTROUTE`** | **S**ocket **O**ption: **DON'T ROUTE** | Skip the routing table, send only to a directly attached network. The `-r` flag. |
 | **`SO_RCVBUF`** | **S**ocket **O**ption: **R**e**C**ei**V**e **BUF**fer | How much incoming data the kernel will hold for you. |
 | **`MSG_TRUNC`** | **M**e**S**sa**G**e **TRUNC**ated | Flag meaning "the packet was bigger than your buffer; the rest is gone." |
+| **`bind()`** | **bind** a socket to an address | Attaches a socket to a specific local address before it's used, instead of letting the kernel pick one automatically. The `-S` flag uses this to fix the outgoing source address. |
 
 ---
 
@@ -98,6 +100,8 @@ Error constants all start with **`E`** for **E**rror.
 | **`CLOCK_REALTIME`** | **CLOCK**, **REAL** wall-clock **TIME** | Actual date and time — can jump when NTP corrects it. Wrong for durations. |
 | **`timespec`** | **time** **spec**ification | Struct holding seconds + nanoseconds. |
 | **Async-signal-safe** | **Asynchronous**-signal-safe | Safe to call from inside a signal handler. `printf` is **not**. |
+| **`usleep()`** | **microsecond** **sleep** | Sleeps for a number of microseconds — enough resolution for the `-i` flag's fractional-second intervals. |
+| **`nanosleep()`** | **nanosecond** **sleep** | Like `usleep`, but takes a `struct timespec` and reports how much time was left if a signal interrupted it. The more precise option for `-i`. |
 
 ---
 

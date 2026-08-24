@@ -51,19 +51,37 @@ archivo más el binario final — no todo el proyecto.
 
 ### Parte A — comparar la salida
 
-1. Compila la referencia:
+1. **No hace falta que compiles la referencia tú mismo** — tu imagen Docker ya lo hace en el momento
+   de construirse y la instala como `ping-ref` (ver `docker/Dockerfile` y `docker/check-env.sh`, que
+   falla de forma explícita si falta). Confirma primero que está:
+   ```sh
+   which ping-ref && ping-ref --version
+   ```
+   Solo compílala tú a mano si eso no devuelve nada. Si la compilas a mano, no limites la
+   compilación a `ping/` — ping también necesita otras librerías internas (p. ej. `libicmp/`), así
+   que eso falla con `No rule to make target '../libicmp/libicmp.a'`. También necesitas
+   `--disable-ftp` al configurar: sin eso, `make` intenta compilar `ftp`, que falla al enlazar con
+   el glibc moderno (`undefined reference to rpl_glob`/`rpl_globfree`, un desajuste entre gnulib y
+   glibc que no merece la pena pelear). `-k` ("keep going") es una red de seguridad adicional por
+   si esa opción alguna vez no se reconoce:
    ```sh
    curl -O https://ftp.gnu.org/gnu/inetutils/inetutils-2.0.tar.gz
    tar xf inetutils-2.0.tar.gz && cd inetutils-2.0
-   ./configure && make
+   ./configure --disable-servers --disable-ftp
+   make -k -j"$(nproc)" || true
+   test -f ping/ping   # confirma que ping se compiló
    ```
-2. Captura ambas salidas y compáralas, normalizando solo las líneas exentas:
+2. Captura ambas salidas y compáralas, normalizando solo las líneas exentas. **Nota:** `-c count` no
+   es uno de los flags que estás implementando (elegiste `-t timeout`/`-o` en su lugar), así que acota
+   la referencia con su propio `-c` y la tuya desde fuera con `timeout` del shell:
    ```sh
-   sudo ./inetutils-2.0/ping/ping -c 3 8.8.8.8 > ref.txt 2>&1
-   sudo ./ft_ping -c 3 8.8.8.8 > mine.txt 2>&1
+   sudo ping-ref -c 3 8.8.8.8 > ref.txt 2>&1
+   sudo timeout 3 ./ft_ping 8.8.8.8 > mine.txt 2>&1
    diff <(sed -E 's/[0-9]+\.[0-9]+ ms//' ref.txt) \
         <(sed -E 's/[0-9]+\.[0-9]+ ms//' mine.txt)
    ```
+   Cuando `-t` funcione (Etapa 10), `sudo ./ft_ping -t 3 8.8.8.8` es la comparación más fiel — la misma
+   idea, pero con tu propio flag en lugar de un wrapper de shell.
 3. **Compara los espacios en blanco explícitamente** — `diff` puede ocultarlos. Ejecuta
    `cat -A ref.txt` y `cat -A mine.txt` y compara espacios finales y tabuladores. Este es el detalle
    que realmente se puntúa.

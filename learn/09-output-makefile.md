@@ -49,19 +49,36 @@ binary — not the whole project.
 
 ### Part A — output diffing
 
-1. Build the reference:
+1. **You don't need to build the reference yourself** — your Docker image already does this at
+   build time and installs it as `ping-ref` (see `docker/Dockerfile` and `docker/check-env.sh`,
+   which fails loudly if it's missing). Confirm it's there first:
+   ```sh
+   which ping-ref && ping-ref --version
+   ```
+   Only rebuild it manually if that comes back empty. If you do rebuild by hand, don't scope the
+   build to just `ping/` — ping also needs other internal libs (e.g. `libicmp/`), so that fails
+   with `No rule to make target '../libicmp/libicmp.a'`. You also need `--disable-ftp` at configure
+   time: without it, `make` tries to build `ftp`, which fails to link on modern glibc (`undefined
+   reference to rpl_glob`/`rpl_globfree`, a gnulib/glibc mismatch you don't need to fight). `-k`
+   ("keep going") is a safety net on top, in case that flag ever goes unrecognized:
    ```sh
    curl -O https://ftp.gnu.org/gnu/inetutils/inetutils-2.0.tar.gz
    tar xf inetutils-2.0.tar.gz && cd inetutils-2.0
-   ./configure && make
+   ./configure --disable-servers --disable-ftp
+   make -k -j"$(nproc)" || true
+   test -f ping/ping   # confirms ping itself actually built
    ```
-2. Capture both and diff, normalising only the exempt lines:
+2. Capture both and diff, normalising only the exempt lines. **Note:** `-c count` isn't one of the
+   flags you're implementing (you went with `-t timeout`/`-o` instead), so bound the reference with
+   its own `-c` and bound yours from the outside with the shell's `timeout`:
    ```sh
-   sudo ./inetutils-2.0/ping/ping -c 3 8.8.8.8 > ref.txt 2>&1
-   sudo ./ft_ping -c 3 8.8.8.8 > mine.txt 2>&1
+   sudo ping-ref -c 3 8.8.8.8 > ref.txt 2>&1
+   sudo timeout 3 ./ft_ping 8.8.8.8 > mine.txt 2>&1
    diff <(sed -E 's/[0-9]+\.[0-9]+ ms//' ref.txt) \
         <(sed -E 's/[0-9]+\.[0-9]+ ms//' mine.txt)
    ```
+   Once `-t` is working (Stage 10), `sudo ./ft_ping -t 3 8.8.8.8` is the closer match — same idea,
+   through your own flag instead of a shell wrapper.
 3. **Diff whitespace explicitly** — `diff` can hide it. Run `cat -A ref.txt` and `cat -A mine.txt`
    and compare trailing spaces and tabs. This is the actual graded detail.
 4. Diff the error paths too: unknown host, unreachable host, `-v` output.

@@ -27,6 +27,11 @@ ARG INETUTILS_VERSION=2.0
 #   iproute2     `ip addr` / `ip route`, to find a gateway to ping
 #   dnsutils     dig, for testing the FQDN resolution path in Stage 4
 #   gdb          because valgrind alone won't tell you where you are
+#   sudo         test.sh drops root to exercise the "requires root" refusals.
+#                You are already root in here, so sudo is not for GAINING privilege
+#                but for shedding it: the suite runs `sudo -n -u nobody ./ft_ping -f`
+#                to prove the flag is refused. Without sudo those tests can only skip,
+#                and a missing privilege check would pass unnoticed.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         make \
@@ -37,11 +42,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iproute2 \
         dnsutils \
         libcap2-bin \
+        sudo \
         curl \
         ca-certificates \
         git \
         vim \
         less \
+        fish \
     && rm -rf /var/lib/apt/lists/*
 
 # Deliberately a separate layer, despite the usual "merge consecutive RUN" rule:
@@ -51,12 +58,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Built from source on purpose. Ubuntu 22.04's inetutils-ping package is version 2.2,
 # but the subject grades you against 2.0 — and the output formatting differs between
 # them. Installing the package would mean diffing against the wrong reference.
+#
+# Two layers of defense against ftp, which fails to link on modern glibc (undefined reference to
+# rpl_glob/rpl_globfree — a gnulib/glibc glob() feature-detection mismatch in inetutils-2.0):
+#   1. `--disable-ftp` tells configure not to build ftp at all — inetutils' own IU_ENABLE_CLIENT
+#      macro registers a --disable-<name> flag per client program, same family as --disable-servers
+#      above, so this is the clean fix, not a workaround.
+#   2. `-k` ("keep going") + `test -f ping/ping` is a safety net in case that flag is ever
+#      unrecognized (configure warns rather than errors on an unknown --disable-*, same as the
+#      --disable-doc warning below) or some other subdir fails: `-k` still finishes every buildable
+#      target, including ping, instead of stopping at the first failure, and the `test` afterward
+#      means the layer still fails loudly if ping itself didn't come out the other end.
+# Also note: ping needs libicmp/ (and possibly other internal libs) besides its own subdirectory,
+# so scoping the build to `make -C ping` alone doesn't work ("No rule to make target
+# '../libicmp/libicmp.a'") — this has to be a full build of everything ftp isn't part of.
 RUN curl -fsSL -o /tmp/inetutils.tar.gz \
         "https://ftp.gnu.org/gnu/inetutils/inetutils-${INETUTILS_VERSION}.tar.gz" \
     && tar xf /tmp/inetutils.tar.gz -C /tmp \
     && cd "/tmp/inetutils-${INETUTILS_VERSION}" \
-    && ./configure --disable-servers --disable-doc >/dev/null \
-    && make -j"$(nproc)" >/dev/null \
+    && ./configure --disable-servers --disable-ftp >/dev/null \
+    && (make -k -j"$(nproc)" >/dev/null || true) \
+    && test -f ping/ping \
     && cp ping/ping /usr/local/bin/ping-ref \
     && cd / && rm -rf /tmp/inetutils*
 
