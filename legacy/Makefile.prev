@@ -1,0 +1,238 @@
+# =============================================================================
+#  ft_ping
+#
+#  Source layout:
+#    include/        one header per module, plus the ft_ping.h umbrella
+#    src/cli/        argv        -> t_flags
+#    src/net/        t_ping_ctx  -> the wire
+#    src/output/     results     -> stdout
+#    src/core/       program lifetime and the event loop
+#    src/utils/      clocks and fatal exits
+#    tests/          standalone unit tests, one binary each
+#
+#  Sources are DISCOVERED, not listed: adding a .c anywhere under src/ picks
+#  it up with no edit here. Object files mirror the source tree under obj/.
+# =============================================================================
+
+NAME		:=	ft_ping
+TESTS		:=	test_checksum test_resolve
+
+CC			:=	cc
+CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP
+CPPFLAGS	:=	-Iinclude
+LDLIBS		:=	-lm   # sqrt() in print_stats()
+
+SRC_DIR		:=	src
+TEST_DIR	:=	tests
+OBJ_DIR		:=	obj
+
+# ==========================
+# Source discovery
+# ==========================
+SRCS		:=	$(shell find $(SRC_DIR) -name '*.c')
+OBJS		:=	$(SRCS:%.c=$(OBJ_DIR)/%.o)
+
+# Each test links against the module(s) it exercises, never against main.c.
+CK_SRCS		:=	$(TEST_DIR)/test_checksum.c $(SRC_DIR)/net/ping_checksum.c
+CK_OBJS		:=	$(CK_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+RS_SRCS		:=	$(TEST_DIR)/test_resolve.c $(SRC_DIR)/net/ping_resolve.c
+RS_OBJS		:=	$(RS_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(CK_OBJS) $(RS_OBJS))
+
+TOTAL		:=	$(words $(SRCS))
+COMPILED	:=	0
+MAKEFLAGS	+=	--no-print-directory
+
+# ==========================
+# Colours
+# ==========================
+GREEN		= \033[0;32m
+BLUE		= \033[0;34m
+CYAN		= \033[0;36m
+YELLOW		= \033[0;33m
+RED			= \033[0;31m
+MAGENTA		= \033[0;35m
+BOLD		= \033[1m
+RESET		= \033[0m
+
+# ==========================
+# Targets
+# ==========================
+all: $(NAME)
+
+$(NAME): $(OBJS)
+	@$(CC) $(CFLAGS) $(OBJS) $(LDLIBS) -o $(NAME)
+	@$(MAKE) banner
+	@printf "$(GREEN)$(BOLD) [ft_ping compiled successfully]$(RESET)\n\n"
+
+# Compile with progress bar. The mkdir handles the mirrored obj/ subtree,
+# so a new src/<module>/ directory needs no rule of its own.
+$(OBJ_DIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@$(eval COMPILED := $(shell echo $$(($(COMPILED) + 1))))
+	@$(eval PCT := $(shell echo $$(($(COMPILED) * 100 / $(TOTAL)))))
+	@$(eval FILLED := $(shell if [ $(COMPILED) -ge $(TOTAL) ]; then echo 20; else echo $$(($(COMPILED) * 20 / $(TOTAL))); fi))
+	@$(eval EMPTY := $(shell echo $$(( 20 - $(FILLED)))))
+	@printf "\r$(CYAN)  Compiling $(BOLD)%-30s$(RESET)$(CYAN) [" "$(notdir $<)"
+	@i=0; while [ $$i -lt $(FILLED) ]; do printf "$(GREEN)█$(RESET)"; i=$$((i+1)); done
+	@i=0; while [ $$i -lt $(EMPTY) ]; do printf "░"; i=$$((i+1)); done
+	@printf "$(CYAN)] $(BOLD)%3d%%$(RESET)" $(PCT)
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+# ==========================
+# Unit tests (C)
+# ==========================
+test: $(TESTS)
+	@printf "$(YELLOW)$(BOLD)\n  Running unit tests...$(RESET)\n\n"
+	@for t in $(TESTS); do printf "$(CYAN)  == %s ==$(RESET)\n" "$$t"; ./$$t || exit 1; done
+	@printf "$(GREEN)$(BOLD)\n  [All tests passed]$(RESET)\n\n"
+
+test_checksum: $(CK_OBJS)
+	@$(CC) $(CFLAGS) $(CK_OBJS) $(LDLIBS) -o $@
+
+test_resolve: $(RS_OBJS)
+	@$(CC) $(CFLAGS) $(RS_OBJS) $(LDLIBS) -o $@
+
+# ==========================
+# Behaviour tests (shell)
+# ==========================
+# Full flag matrix against the built binary. Pass FLAGS to test.sh through
+# ARGS, e.g. `make check-behaviour ARGS="-v"` or ARGS="--host 127.0.0.1".
+check-behaviour: $(NAME)
+	@chmod +x ./test.sh
+	@./test.sh $(ARGS)
+
+# ==========================
+# Valgrind
+# ==========================
+valgrind: $(NAME)
+	@printf "$(YELLOW)$(BOLD)\n  Running valgrind on $(NAME) (needs sudo for raw sockets)...$(RESET)\n\n"
+	sudo valgrind \
+		--leak-check=full \
+		--show-leak-kinds=all \
+		--track-origins=yes \
+		--track-fds=yes \
+		--error-exitcode=1 \
+		--verbose \
+		./$(NAME) 127.0.0.1
+
+# ==========================
+# Debug build
+# ==========================
+debug: CFLAGS += -g3 -fsanitize=address
+debug: re
+	@printf "$(RED)$(BOLD)  [Debug build with ASan ready]$(RESET)\n\n"
+
+# ==========================
+# Run
+# ==========================
+run: $(NAME)
+	@printf "$(GREEN)$(BOLD)  Starting ft_ping (needs sudo for raw sockets)...$(RESET)\n\n"
+	sudo ./$(NAME) $(ARGS)
+
+# ==========================
+# Check style / warnings
+# ==========================
+check: CFLAGS += -Wpedantic -Wshadow -Wconversion
+check: re
+	@printf "$(MAGENTA)$(BOLD)  [Strict warning check complete]$(RESET)\n\n"
+
+# ==========================
+# Count lines of code
+# ==========================
+cloc:
+	@printf "$(CYAN)$(BOLD)\n  Lines of code:$(RESET)\n\n"
+	@find $(SRC_DIR) include $(TEST_DIR) -name "*.c" -o -name "*.h" | \
+		xargs wc -l | sort -rn | head -30
+	@printf "\n"
+
+# ==========================
+# Show the source tree
+# ==========================
+list:
+	@printf "$(CYAN)$(BOLD)\n  Sources ($(TOTAL) files):$(RESET)\n"
+	@for f in $(SRCS); do printf "    $(GREEN)→$(RESET) $$f\n"; done
+	@printf "$(CYAN)$(BOLD)\n  Headers:$(RESET)\n"
+	@for f in include/*.h; do printf "    $(BLUE)→$(RESET) $$f\n"; done
+	@printf "$(CYAN)$(BOLD)\n  Tests:$(RESET)\n"
+	@for f in $(TEST_DIR)/*.c test.sh; do printf "    $(YELLOW)→$(RESET) $$f\n"; done
+	@printf "\n"
+
+# ==========================
+# Push to GitHub
+# ==========================
+# Usage: make push MSG="commit message"
+MSG			?=	update: $(shell date "+%Y-%m-%d %H:%M")
+BRANCH		:=	$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+push:
+	@printf "$(YELLOW)$(BOLD)\n  Pushing to GitHub ($(BRANCH))...$(RESET)\n\n"
+	@git add -A
+	@if git diff --cached --quiet; then \
+		printf "$(CYAN)  Nothing to commit, pushing anyway...$(RESET)\n"; \
+	else \
+		git commit -m "$(MSG)"; \
+	fi
+	@git push origin $(BRANCH)
+	@printf "$(GREEN)$(BOLD)\n  [Pushed to $(BRANCH)]$(RESET)\n\n"
+
+# ==========================
+# Banner
+# ==========================
+banner:
+	@if [ -t 1 ] && [ -n "$$TERM" ]; then clear; fi
+	@printf "\n$(CYAN)"
+	@sleep 0.05
+	@printf "%s\n" "    ______              _            "
+	@sleep 0.15
+	@printf "%s\n" "   / __/ /_      ____  (_)___  ____ _"
+	@sleep 0.15
+	@printf "%s\n" "  / /_/ __/     / __ \\/ / __ \\/ __ \`/"
+	@sleep 0.15
+	@printf "%s\n" " / __/ /_      / /_/ / / / / / /_/ / "
+	@sleep 0.15
+	@printf "%s\n" "/_/  \\__/_____/ .___/_/_/ /_/\\__, /  "
+	@sleep 0.15
+	@printf "%s\n" "       /_____/_/            /____/   "
+	@printf "$(RESET)\n"
+
+# ==========================
+# Clean
+# ==========================
+clean:
+	@rm -rf $(OBJ_DIR)
+	@printf "$(BLUE)\n  Cleansed$(RESET)\n"
+
+fclean: clean
+	@rm -f $(NAME) $(TESTS)
+	@printf "$(BLUE)  More Cleansed$(RESET)\n\n"
+
+re: fclean all
+
+-include $(ALL_OBJS:.o=.d)
+
+# ==========================
+# Help
+# ==========================
+help:
+	@printf "\n$(CYAN)$(BOLD)  ft_ping — available commands$(RESET)\n\n"
+	@printf "  $(GREEN)make$(RESET)                  — build ft_ping\n"
+	@printf "  $(GREEN)make re$(RESET)               — clean and rebuild\n"
+	@printf "  $(GREEN)make clean$(RESET)            — remove object files\n"
+	@printf "  $(GREEN)make fclean$(RESET)           — remove objects, binary, and test binaries\n"
+	@printf "  $(GREEN)make test$(RESET)             — build and run the C unit tests\n"
+	@printf "  $(GREEN)make check-behaviour$(RESET)  — run test.sh, the full flag matrix\n"
+	@printf "  $(GREEN)make run$(RESET)              — build and run ft_ping (sudo, pass ARGS=\"...\")\n"
+	@printf "  $(GREEN)make debug$(RESET)            — build with AddressSanitizer and debug symbols\n"
+	@printf "  $(GREEN)make valgrind$(RESET)         — run ft_ping under valgrind (sudo)\n"
+	@printf "  $(GREEN)make check$(RESET)            — rebuild with extra pedantic warnings\n"
+	@printf "  $(GREEN)make cloc$(RESET)             — count lines of code per file\n"
+	@printf "  $(GREEN)make list$(RESET)             — list the source tree\n"
+	@printf "  $(GREEN)make push$(RESET)             — commit and push to GitHub (pass MSG=\"...\")\n"
+	@printf "  $(GREEN)make help$(RESET)             — show this message\n"
+	@printf "\n$(CYAN)  Usage:$(RESET)\n"
+	@printf "  $(YELLOW)sudo ./ft_ping <host> [options]$(RESET)\n\n"
+
+.PHONY: all test check-behaviour clean fclean re valgrind debug run check cloc list banner push help

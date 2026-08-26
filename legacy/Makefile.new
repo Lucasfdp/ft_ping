@@ -15,7 +15,7 @@
 # =============================================================================
 
 NAME		:=	ft_ping
-TESTS		:=	test_checksum test_resolve
+TESTS		:=	test_checksum test_resolve test_stats
 
 CC			:=	cc
 CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP
@@ -39,7 +39,10 @@ CK_OBJS		:=	$(CK_SRCS:%.c=$(OBJ_DIR)/%.o)
 RS_SRCS		:=	$(TEST_DIR)/test_resolve.c $(SRC_DIR)/net/ping_resolve.c
 RS_OBJS		:=	$(RS_SRCS:%.c=$(OBJ_DIR)/%.o)
 
-ALL_OBJS	:=	$(sort $(OBJS) $(CK_OBJS) $(RS_OBJS))
+ST_SRCS		:=	$(TEST_DIR)/test_stats.c $(SRC_DIR)/output/ping_print_report.c
+ST_OBJS		:=	$(ST_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+ALL_OBJS	:=	$(sort $(OBJS) $(CK_OBJS) $(RS_OBJS) $(ST_OBJS))
 
 TOTAL		:=	$(words $(SRCS))
 COMPILED	:=	0
@@ -94,6 +97,9 @@ test_checksum: $(CK_OBJS)
 
 test_resolve: $(RS_OBJS)
 	@$(CC) $(CFLAGS) $(RS_OBJS) $(LDLIBS) -o $@
+
+test_stats: $(ST_OBJS)
+	@$(CC) $(CFLAGS) $(ST_OBJS) $(LDLIBS) -o $@
 
 # ==========================
 # Behaviour tests (shell)
