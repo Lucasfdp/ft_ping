@@ -17,7 +17,32 @@
 NAME		:=	ft_ping
 TESTS		:=	test_checksum test_resolve test_stats
 
-CC			:=	cc
+# ==========================
+# Compiler detection
+# ==========================
+# `cc` is not guaranteed to exist. It is a traditional alias, and a minimal
+# Debian/Ubuntu VM - a 42 image, a container, a fresh cloud box - can ship
+# gcc or clang without ever creating it.
+#
+# When it is missing, the compile rule below dies with a bare
+#
+#     make: *** [Makefile:NN: obj/src/cli/ping_parse_pattern.o] Error 127
+#
+# 127 is the shell's code for "command not found", but make reports the
+# TARGET rather than the missing command, so the message reads as though the
+# object file were the problem. It is not: the compiler is.
+#
+# So find one, and if there is genuinely none, say something actionable
+# instead of failing halfway through a build. A command-line override always
+# wins over everything here:  make CC=clang
+CC			:=	$(firstword $(foreach c,cc gcc clang,\
+					$(if $(shell command -v $(c) 2>/dev/null),$(c))))
+ifeq ($(strip $(CC)),)
+$(error No C compiler found - looked for cc, gcc and clang on your PATH. \
+Install one with `sudo apt install build-essential` (Debian/Ubuntu) or \
+`xcode-select --install` (macOS), or point this at yours: make CC=/path/to/gcc)
+endif
+
 CFLAGS		:=	-Wall -Wextra -Werror -MMD -MP
 CPPFLAGS	:=	-Iinclude
 LDLIBS		:=	-lm   # sqrt() in print_stats()
@@ -146,6 +171,35 @@ check: re
 	@printf "$(MAGENTA)$(BOLD)  [Strict warning check complete]$(RESET)\n\n"
 
 # ==========================
+# Toolchain report
+# ==========================
+# Run this first on any machine that will not build. It answers the questions
+# a bare "Error 127" cannot: which compiler was found, whether the optional
+# tools the test targets need are present, and what make itself is.
+env:
+	@printf "$(CYAN)$(BOLD)\n  Toolchain$(RESET)\n\n"
+	@printf "    %-14s %s\n" "compiler"  "$(CC)"
+	@printf "    %-14s %s\n" "path"      "$$(command -v $(CC) 2>/dev/null || echo '(not found)')"
+	@printf "    %-14s %s\n" "version"   "$$($(CC) --version 2>/dev/null | head -1 || echo '(unknown)')"
+	@printf "    %-14s %s\n" "make"      "$$($(MAKE) --version 2>/dev/null | head -1)"
+	@printf "    %-14s %s\n" "uname"     "$$(uname -srm)"
+	@printf "$(CYAN)$(BOLD)\n  Optional tools$(RESET)\n\n"
+	@for t in valgrind tcpdump sudo ping-ref clear; do \
+		p=$$(command -v $$t 2>/dev/null); \
+		if [ -n "$$p" ]; then \
+			printf "    $(GREEN)✓$(RESET) %-12s %s\n" "$$t" "$$p"; \
+		else \
+			printf "    $(YELLOW)-$(RESET) %-12s (not installed)\n" "$$t"; \
+		fi; \
+	done
+	@printf "$(CYAN)$(BOLD)\n  Sources found$(RESET)\n\n"
+	@printf "    %-14s %s\n" ".c under src/" "$(TOTAL)"
+	@if [ "$(TOTAL)" -eq 0 ]; then \
+		printf "    $(RED)no sources found - are you running make from the repo root?$(RESET)\n"; \
+	fi
+	@printf "\n"
+
+# ==========================
 # Count lines of code
 # ==========================
 cloc:
@@ -188,7 +242,11 @@ push:
 # Banner
 # ==========================
 banner:
-	@if [ -t 1 ] && [ -n "$$TERM" ]; then clear; fi
+	@# `clear` lives in ncurses-bin, which a minimal VM may not have - and a
+	@# missing command here would fail the build with the same Error 127 the
+	@# compiler check above exists to explain. Skip it rather than die for a
+	@# cosmetic reason.
+	@if [ -t 1 ] && [ -n "$$TERM" ] && command -v clear >/dev/null 2>&1; then clear; fi
 	@printf "\n$(CYAN)"
 	@sleep 0.05
 	@printf "%s\n" "    ______              _            "
@@ -234,6 +292,7 @@ help:
 	@printf "  $(GREEN)make debug$(RESET)            — build with AddressSanitizer and debug symbols\n"
 	@printf "  $(GREEN)make valgrind$(RESET)         — run ft_ping under valgrind (sudo)\n"
 	@printf "  $(GREEN)make check$(RESET)            — rebuild with extra pedantic warnings\n"
+	@printf "  $(GREEN)make env$(RESET)              — report the toolchain (run this if the build fails)\n"
 	@printf "  $(GREEN)make cloc$(RESET)             — count lines of code per file\n"
 	@printf "  $(GREEN)make list$(RESET)             — list the source tree\n"
 	@printf "  $(GREEN)make push$(RESET)             — commit and push to GitHub (pass MSG=\"...\")\n"
@@ -241,4 +300,4 @@ help:
 	@printf "\n$(CYAN)  Usage:$(RESET)\n"
 	@printf "  $(YELLOW)sudo ./ft_ping <host> [options]$(RESET)\n\n"
 
-.PHONY: all test check-behaviour clean fclean re valgrind debug run check cloc list banner push help
+.PHONY: all test check-behaviour clean fclean re valgrind debug run check env cloc list banner push help
